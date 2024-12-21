@@ -8,7 +8,6 @@
 #include <SDL3/SDL_opengles2.h>
 #include <SDL3/SDL_timer.h>
 
-#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdio>
@@ -33,23 +32,29 @@
 #include "gl_helper.hpp"
 #include "log.hpp"
 
-constexpr float ASPECT_RATIO = 4.f / 3.f;
+constexpr int SEQ_LEN = 4;
+constexpr float ASPECT_RATIO = 16.f / 9.f;//4.f / 3.f;
 constexpr float NORM_HEIGHT = 1.f / ASPECT_RATIO;
 
-const glm::vec4 BG_COLOR{0.3f, 0.3f, 0.3f, 1.f};
-const glm::vec4 BUTTON_LINE_COLOR{1.f, 1.f, 1.f, 1.f};
-const glm::vec4 BUTTON_FILL_COLOR{1.f, 0.f, 0.f, 1.f};
-constexpr float BUTTON_RADIUS = 0.05f;
-constexpr float BUTTON_LINE_THICKNESS = 0.01f;
+const char *BG_COLOR = "gray";
 
-const glm::vec4 FONT_FG{231 / 255.0, 202 / 255.0, 96 / 255.0, 1.0};
-const glm::vec4 FONT_BG{0, 0, 0, 0};
-const glm::vec4 FONT_OUTLINE{1, 1, 1, 1};
-constexpr float FONT_OUTLINE_FACTOR = 0.1f;
-constexpr float FONT_WIDTH = 0.2f;
+constexpr float BUTTON_PANEL_WIDTH = 0.5f;
+const char *BUTTON_LINE_COLOR = "white";
+const char *BUTTON_FILL_COLOR = "blue";
+float BUTTON_LINE_THICKNESS = 0.005f;
+constexpr float BUTTON_RADIUS = 0.06f;
 
-std::map<std::string, glm::vec4> tableau10_palette() {
-    const std::map<std::string, uint32_t> color{
+const char *FONT_FG = "yellow";
+const char *FONT_FG2 = "orange";
+const char *FONT_BG = "transparent";
+const char *FONT_OUTLINE = "white";
+constexpr float FONT_OUTLINE_FACTOR = 0.0f;
+constexpr float FONT_WIDTH = 0.15f;
+const glm::vec2 FONT_OFFSET = {-0.02f, 0.05f};
+
+glm::vec4 palette(const std::string &color) {
+    // based on tableau 10
+    const std::map<std::string, uint32_t> colors{
         {"blue", 0x5778a4},
         {"orange", 0xe49444},
         {"red", 0xd1615d},
@@ -60,20 +65,20 @@ std::map<std::string, glm::vec4> tableau10_palette() {
         {"pink", 0xf1a2a9},
         {"brown", 0x967662},
         {"grey", 0xb8b0ac},
+        {"white", 0xffffff},
+        {"gray", 0x4c4c4c},
     };
 
-    std::map<std::string, glm::vec4> ret;
-
-    for (auto it : color) {
-        uint32_t c = it.second;
-        uint8_t r = static_cast<uint8_t>(c >> 16);
-        uint8_t g = (c >> 8) & 0xff;
-        uint8_t b = c & 0xff;
-
-        ret[it.first] = {r / 255.f, g / 255.f, b / 255.f, 1.0f};
+    if (color == "transparent") {
+        return {0.f, 0.f, 0.f, 0.f};
     }
 
-    return ret;
+    uint32_t c = colors.at(color);
+    uint8_t r = static_cast<uint8_t>(c >> 16);
+    uint8_t g = (c >> 8) & 0xff;
+    uint8_t b = c & 0xff;
+
+    return {r / 255.f, g / 255.f, b / 255.f, 1.0f};
 }
 
 enum class AudioEnum { BGM, CORRECT, WIN };
@@ -86,25 +91,34 @@ struct AppState {
     SDL_AudioDeviceID audio_device = 0;
     std::map<AudioEnum, Audio> audio;
 
-    int score = 0;
     bool init = false;
+    std::array<int, SEQ_LEN> number_sequence;
+    std::array<bool, SEQ_LEN> number_done;
 
     FontAtlas font;
     FontShader font_shader;
+    std::array<VertexBufferPtr, 10> number{
+        VertexBufferPtr{{}, {}},
+        VertexBufferPtr{{}, {}},
+        VertexBufferPtr{{}, {}},
+        VertexBufferPtr{{}, {}},
+        VertexBufferPtr{{}, {}},
+        VertexBufferPtr{{}, {}},
+        VertexBufferPtr{{}, {}},
+        VertexBufferPtr{{}, {}},
+        VertexBufferPtr{{}, {}},
+        VertexBufferPtr{{}, {}},
+    };
 
-    // drawing area within the window
-    glm::vec2 draw_area_offset;
-    glm::vec2 draw_area_size;
-    glm::vec2 draw_area_grid_size;
+    std::array<BBox, 10> number_bbox;
+
     Shape draw_area_bg;
 
     VertexArrayPtr vao{{}, {}};
-    VertexBufferPtr score_vertex{{}, {}};
-    BBox score_vertex_bbox;
 
     ShapeShader shape_shader;
     Shape button; 
-    std::array<glm::vec2, 10> button_center;  // position for src shape, normalized units
+    std::array<glm::vec2, 10> button_center;
 
     uint64_t last_tick = 0;
 };
@@ -124,38 +138,82 @@ bool resize_event(AppState &as) {
     float win_wf = static_cast<float>(win_w);
     float win_hf = static_cast<float>(win_h);
 
+    glm::vec2 draw_area_size;
+    glm::vec2 draw_area_offset;
+
     if (win_w > win_h) {
-        as.draw_area_size.y = win_hf;
-        as.draw_area_size.x = win_hf * ASPECT_RATIO;
-        as.draw_area_offset.x = (win_wf - as.draw_area_size.x) / 2;
-        as.draw_area_offset.y = 0;
+        draw_area_size.y = win_hf;
+        draw_area_size.x = win_hf * ASPECT_RATIO;
+        draw_area_offset.x = (win_wf - draw_area_size.x) / 2;
+        draw_area_offset.y = 0;
     } else {
-        as.draw_area_size.x = win_wf;
-        as.draw_area_size.y = win_wf / ASPECT_RATIO;
-        as.draw_area_offset.x = 0;
-        as.draw_area_offset.y = (win_hf - as.draw_area_size.y) / 2;
+        draw_area_size.x = win_wf;
+        draw_area_size.y = win_wf / ASPECT_RATIO;
+        draw_area_offset.x = 0;
+        draw_area_offset.y = (win_hf - draw_area_size.y) / 2;
     }
 
     glViewport(0, 0, win_w, win_h);
     glm::mat4 ortho = glm::ortho(0.f, win_wf, win_hf, 0.f);
 
-    float scale = as.draw_area_size.x;
+    float scale = draw_area_size.x;
 
     as.shape_shader.set_ortho(ortho);
-    as.shape_shader.set_drawing_area_offset(as.draw_area_offset);
+    as.shape_shader.set_drawing_area_offset(draw_area_offset);
     as.shape_shader.set_screen_scale(scale);
 
     as.font_shader.set_ortho(ortho);
     as.font_shader.set_screen_scale(scale);
-    as.font_shader.set_drawing_area_offset(as.draw_area_offset);
+    as.font_shader.set_drawing_area_offset(draw_area_offset);
 
     return true;
+}
+
+void mouse_up_event(AppState &as) {
+    float cx = 0, cy = 0;
+    SDL_GetMouseState(&cx, &cy);
+
+    glm::vec2 pos = screen_pos_to_normalize_pos(as.shape_shader, {cx, cy});
+    glm::vec2 radius{BUTTON_RADIUS, BUTTON_RADIUS};
+
+    for (size_t i=0; i < as.button_center.size(); i++) {
+        const glm::vec2 &c = as.button_center[i];
+        glm::vec2 start = c - radius;
+        glm::vec2 end = c + radius;
+
+        if ((pos.x > start.x) && (pos.x < end.x) && (pos.y > start.y) && (pos.y < end.y)) {
+            int num_click = static_cast<int>(i + 1);
+            LOG("%d", num_click);
+
+            for (size_t j=0; j < as.number_done.size(); j++) {
+                if (!as.number_done[j]) {
+                    LOG("%d == %d", num_click, as.number_sequence[j]);
+                    if (num_click == as.number_sequence[j]) {
+                        LOG("here");
+                        as.number_done[j] = true;
+                    }
+
+                    break;
+                }
+            }
+
+            break;
+        }
+    }
 }
 
 void init_game(AppState &as) {
     std::random_device rd;
     std::mt19937 g(rd());
-    std::uniform_real_distribution<float> dice_binary(0, 1);
+    std::uniform_int_distribution<> dice(0, 9);
+
+    for (int &a: as.number_sequence) {
+        a = dice(g);
+    }
+
+    for (bool &b: as.number_done) {
+        b = false;
+    }
 
     resize_event(as);
 }
@@ -197,23 +255,7 @@ bool init_font(AppState &as, const std::string &base_path) {
         return false;
     }
 
-    as.font_shader.set_font_distance_range(static_cast<float>(as.font.distance_range));
-    as.font_shader.set_font_grid_width(static_cast<float>(as.font.grid_width));
-    as.font_shader.set_font_target_width(FONT_WIDTH);
-
-    as.font_shader.set_fg(FONT_FG);
-    as.font_shader.set_bg(FONT_BG);
-    as.font_shader.set_outline(FONT_OUTLINE);
-    as.font_shader.set_outline_factor(FONT_OUTLINE_FACTOR);
-
     return true;
-}
-
-void update_score_text(AppState &as) {
-    auto [vertex, index] = as.font.make_text_vertex(std::to_string(as.score), true);
-    as.score_vertex_bbox = bbox(vertex);
-    as.score_vertex->update_vertex(
-        glm::value_ptr(vertex[0]), sizeof(decltype(vertex)::value_type) * vertex.size(), index);
 }
 
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
@@ -270,10 +312,11 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
         return SDL_APP_FAILURE;
     }
 
-    // pre-allocate all vertex we need
-    // number of space needs to be >= MAX_SCORE string
-    as->score_vertex = as->font.make_text("    ", true);
-    update_score_text(*as);
+    for (size_t i=0; i < as->number.size(); i++) {
+        auto [vertex_buffer, bbox] = as->font.make_text(std::to_string(i).c_str(), true);
+        as->number[i] = std::move(vertex_buffer);
+        as->number_bbox[i] = bbox;
+    }
 
     if (!as->shape_shader.init()) {
         return SDL_APP_FAILURE;
@@ -295,7 +338,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
             {0.f, h},
         };
 
-        as->draw_area_bg = make_shape(vertex, 0, {}, BG_COLOR);
+        as->draw_area_bg = make_shape(vertex, 0, {}, palette(BG_COLOR));
     }
 
     {
@@ -306,7 +349,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
             {-BUTTON_RADIUS, BUTTON_RADIUS},
         };
 
-        as->button = make_shape(vertex, BUTTON_LINE_THICKNESS, BUTTON_LINE_COLOR, BUTTON_FILL_COLOR);
+        as->button = make_shape(vertex, BUTTON_LINE_THICKNESS, palette(BUTTON_LINE_COLOR), palette(BUTTON_FILL_COLOR));
     }
 
     // position for the src and dst shape
@@ -316,15 +359,15 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
     size_t idx =0;
     for (size_t i = 0; i < 3; i++) {
         for (size_t j=0; j < 3; j++) {
-            float x = (2*j+1) / xdiv; 
-            float y = (2*i+1) / ydiv; 
+            float x = static_cast<float>(2*j+1) / xdiv; 
+            float y = static_cast<float>(2*i+1) / ydiv; 
 
-            as->button_center[idx] = {x, y * NORM_HEIGHT};
+            as->button_center[idx] = {x*BUTTON_PANEL_WIDTH, y * NORM_HEIGHT};
             idx++;
         }
     }
 
-    as->button_center[9] = {(2*1 + 1)/xdiv, (2*3+1)/ydiv * NORM_HEIGHT}; 
+    as->button_center[9] = {(2*1 + 1)/xdiv*BUTTON_PANEL_WIDTH, (2*3+1)/ydiv * NORM_HEIGHT}; 
 
     init_game(*as);
 
@@ -359,6 +402,7 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
             break;
 
         case SDL_EVENT_MOUSE_BUTTON_UP:
+            mouse_up_event(as);
             break;
     }
 
@@ -409,7 +453,7 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
         as.init = true;
     }
 
-    // glDisable(GL_DEPTH_TEST);
+    glDisable(GL_DEPTH_TEST);
     glClearColor(0.0, 0.0, 0.0, 1.0);
     glClear(GL_COLOR_BUFFER_BIT);
 
@@ -419,22 +463,52 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
     SDL_GetMouseState(&cx, &cy);
 
     draw_shape(as.shape_shader, as.draw_area_bg, true, false, false);
-    
+   
+    as.font_shader.set_fg(palette(FONT_FG));
+    as.font_shader.set_bg(palette(FONT_BG));
+    as.font_shader.set_outline(palette(FONT_OUTLINE));
+    as.font_shader.set_outline_factor(FONT_OUTLINE_FACTOR);
+    as.font_shader.set_font_target_width(FONT_WIDTH);
+
+    size_t i = 0;
     for (const auto &center: as.button_center) {
         as.button.trans = center;
-        draw_shape(as.shape_shader, as.button, true, false, false);
+        draw_shape(as.shape_shader, as.button, true, true, false);
+
+        glm::vec2 bbox_center = (as.number_bbox[i].start + as.number_bbox[i].end)*0.5f;
+        bbox_center -= FONT_OFFSET;
+        bbox_center *= FONT_WIDTH;
+
+        as.font_shader.set_trans(center - bbox_center);
+        draw_vertex_buffer(as.font_shader.shader, as.number[(i+1)%10], as.font.tex);
+
+        i++;
     }
 
-    // if (as.score > 0) {
-    //     // draw the score in the middle of the drawing area
-    //     const BBox &bbox = as.score_vertex_bbox;
-    //
-    //     glm::vec2 text_center = (bbox.start + bbox.end) * 0.5f * FONT_WIDTH;
-    //     glm::vec2 trans = glm::vec2{0.5f, NORM_HEIGHT * 0.5f} - text_center;
-    //
-    //     as.font_shader.set_trans(trans);
-    //     draw_vertex_buffer(as.font_shader.shader, as.score_vertex, as.font.tex);
-    // }
+    as.font_shader.set_bg(palette(FONT_BG));
+    as.font_shader.set_outline(palette("white"));
+    as.font_shader.set_outline_factor(0.1f);
+
+    float ydiv = 4 * 2;
+    for (size_t i=0; i < as.number_sequence.size(); i++) {
+        glm::vec2 bbox_center = (as.number_bbox[i].start + as.number_bbox[i].end)*0.5f;
+        bbox_center -= FONT_OFFSET;
+        bbox_center *= FONT_WIDTH;
+
+        glm::vec2 pos{0.6 + static_cast<float>(i)*0.1, NORM_HEIGHT*3/ydiv};
+
+        as.font_shader.set_trans(pos - bbox_center);
+        int num = as.number_sequence[i];
+
+        if (as.number_done[i]) {
+            as.font_shader.set_font_target_width(FONT_WIDTH*1.2);
+            as.font_shader.set_fg(palette(FONT_FG2));
+        } else {
+            as.font_shader.set_font_target_width(FONT_WIDTH);
+            as.font_shader.set_fg(palette("transparent"));
+        }
+        draw_vertex_buffer(as.font_shader.shader, as.number[static_cast<size_t>(num)], as.font.tex);
+    }
 
     SDL_GL_SwapWindow(as.window);
 

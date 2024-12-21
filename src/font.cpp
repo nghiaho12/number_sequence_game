@@ -214,9 +214,9 @@ std::pair<std::vector<glm::vec4>, std::vector<uint32_t>> FontAtlas::make_text_ve
     return {vertex_uv, index};
 }
 
-VertexBufferPtr FontAtlas::make_text(const std::string &str, bool normalize) {
+std::pair<VertexBufferPtr, BBox> FontAtlas::make_text(const std::string &str, bool normalize) {
     auto [vertex_uv, index] = make_text_vertex(str, normalize);
-    return make_vertex_buffer(vertex_uv, index);
+    return {make_vertex_buffer(vertex_uv, index), bbox(vertex_uv)};
 }
 
 bool FontShader::init(const FontAtlas &font_atlas) {

@@ -33,7 +33,7 @@ struct FontAtlas {
     std::map<int, Glyph> glyph;
 
     bool load(const std::string &atlas_path, const std::string &atlas_txt);
-    VertexBufferPtr make_text(const std::string &str, bool normalize);
+    std::pair<VertexBufferPtr, BBox> make_text(const std::string &str, bool normalize);
     std::pair<std::vector<glm::vec4>, std::vector<uint32_t>> make_text_vertex(const std::string &str, bool normalize);
 
     std::pair<glm::vec2, glm::vec2> get_char_uv(char ch);
