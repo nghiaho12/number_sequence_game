@@ -36,7 +36,7 @@ constexpr int SEQ_LEN = 4;
 constexpr float ASPECT_RATIO = 16.f / 9.f;//4.f / 3.f;
 constexpr float NORM_HEIGHT = 1.f / ASPECT_RATIO;
 
-const char *BG_COLOR = "gray";
+const char *BG_COLOR = "grey";
 
 constexpr float BUTTON_PANEL_WIDTH = 0.5f;
 const char *BUTTON_LINE_COLOR = "white";
@@ -45,14 +45,15 @@ float BUTTON_LINE_THICKNESS = 0.005f;
 constexpr float BUTTON_RADIUS = 0.06f;
 
 const char *FONT_FG = "yellow";
-const char *FONT_FG2 = "orange";
+const char *FONT_FG2 = "yellow";
 const char *FONT_BG = "transparent";
 const char *FONT_OUTLINE = "white";
 constexpr float FONT_OUTLINE_FACTOR = 0.0f;
 constexpr float FONT_WIDTH = 0.15f;
+constexpr float FONT_ENLARGE_SCALE = 1.2f;
 const glm::vec2 FONT_OFFSET = {-0.02f, 0.05f};
 
-glm::vec4 palette(const std::string &color) {
+glm::vec4 get_color(const std::string &color) {
     // based on tableau 10
     const std::map<std::string, uint32_t> colors{
         {"blue", 0x5778a4},
@@ -66,11 +67,14 @@ glm::vec4 palette(const std::string &color) {
         {"brown", 0x967662},
         {"grey", 0xb8b0ac},
         {"white", 0xffffff},
-        {"gray", 0x4c4c4c},
     };
 
     if (color == "transparent") {
         return {0.f, 0.f, 0.f, 0.f};
+    }
+
+    if (colors.find(color) == colors.end()) {
+        LOG("no such color: %s", color.c_str());
     }
 
     uint32_t c = colors.at(color);
@@ -182,14 +186,13 @@ void mouse_up_event(AppState &as) {
         glm::vec2 end = c + radius;
 
         if ((pos.x > start.x) && (pos.x < end.x) && (pos.y > start.y) && (pos.y < end.y)) {
-            int num_click = static_cast<int>(i + 1);
+            int num_click = static_cast<int>(i + 1) % 10;
             LOG("%d", num_click);
 
             for (size_t j=0; j < as.number_done.size(); j++) {
                 if (!as.number_done[j]) {
                     LOG("%d == %d", num_click, as.number_sequence[j]);
                     if (num_click == as.number_sequence[j]) {
-                        LOG("here");
                         as.number_done[j] = true;
                     }
 
@@ -338,7 +341,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
             {0.f, h},
         };
 
-        as->draw_area_bg = make_shape(vertex, 0, {}, palette(BG_COLOR));
+        as->draw_area_bg = make_shape(vertex, 0, {}, get_color(BG_COLOR));
     }
 
     {
@@ -349,7 +352,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
             {-BUTTON_RADIUS, BUTTON_RADIUS},
         };
 
-        as->button = make_shape(vertex, BUTTON_LINE_THICKNESS, palette(BUTTON_LINE_COLOR), palette(BUTTON_FILL_COLOR));
+        as->button = make_shape(vertex, BUTTON_LINE_THICKNESS, get_color(BUTTON_LINE_COLOR), get_color(BUTTON_FILL_COLOR));
     }
 
     // position for the src and dst shape
@@ -464,9 +467,9 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
 
     draw_shape(as.shape_shader, as.draw_area_bg, true, false, false);
    
-    as.font_shader.set_fg(palette(FONT_FG));
-    as.font_shader.set_bg(palette(FONT_BG));
-    as.font_shader.set_outline(palette(FONT_OUTLINE));
+    as.font_shader.set_fg(get_color(FONT_FG));
+    as.font_shader.set_bg(get_color(FONT_BG));
+    as.font_shader.set_outline(get_color(FONT_OUTLINE));
     as.font_shader.set_outline_factor(FONT_OUTLINE_FACTOR);
     as.font_shader.set_font_target_width(FONT_WIDTH);
 
@@ -485,28 +488,33 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
         i++;
     }
 
-    as.font_shader.set_bg(palette(FONT_BG));
-    as.font_shader.set_outline(palette("white"));
+    as.font_shader.set_bg(get_color(FONT_BG));
+    as.font_shader.set_outline(get_color("white"));
     as.font_shader.set_outline_factor(0.1f);
 
     float ydiv = 4 * 2;
     for (size_t i=0; i < as.number_sequence.size(); i++) {
-        glm::vec2 bbox_center = (as.number_bbox[i].start + as.number_bbox[i].end)*0.5f;
-        bbox_center -= FONT_OFFSET;
-        bbox_center *= FONT_WIDTH;
 
         glm::vec2 pos{0.6 + static_cast<float>(i)*0.1, NORM_HEIGHT*3/ydiv};
 
-        as.font_shader.set_trans(pos - bbox_center);
         int num = as.number_sequence[i];
 
+        glm::vec2 bbox_center = (as.number_bbox[i].start + as.number_bbox[i].end)*0.5f;
+        bbox_center -= FONT_OFFSET;
+
         if (as.number_done[i]) {
-            as.font_shader.set_font_target_width(FONT_WIDTH*1.2);
-            as.font_shader.set_fg(palette(FONT_FG2));
+            bbox_center *= FONT_WIDTH*FONT_ENLARGE_SCALE;
+
+            as.font_shader.set_font_target_width(FONT_WIDTH*FONT_ENLARGE_SCALE);
+            as.font_shader.set_fg(get_color(FONT_FG2));
         } else {
+            bbox_center *= FONT_WIDTH;
+
             as.font_shader.set_font_target_width(FONT_WIDTH);
-            as.font_shader.set_fg(palette("transparent"));
+            as.font_shader.set_fg(get_color("transparent"));
         }
+
+        as.font_shader.set_trans(pos - bbox_center);
         draw_vertex_buffer(as.font_shader.shader, as.number[static_cast<size_t>(num)], as.font.tex);
     }
 
