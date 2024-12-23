@@ -1,4 +1,3 @@
-#include <SDL3/SDL_events.h>
 #define SDL_MAIN_USE_CALLBACKS  // use the callbacks instead of main()
 #define GL_GLEXT_PROTOTYPES
 
@@ -9,13 +8,11 @@
 #include <SDL3/SDL_timer.h>
 
 #include <array>
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
-#include <glm/mat4x4.hpp>
-#include <glm/vec2.hpp>
-#include <glm/vec4.hpp>
 #include <map>
 #include <optional>
 #include <random>
@@ -31,59 +28,41 @@
 #include "geometry.hpp"
 #include "gl_helper.hpp"
 #include "log.hpp"
+#include "color_palette.hpp"
+
+// All co-ordinates used are normalized as follows
+// x: [0.0, 1.0]
+// y: [0.0, 1/ASPECT_RATIO]
+// origin at top-left
 
 constexpr int SEQ_LEN = 4;
-constexpr float ASPECT_RATIO = 16.f / 9.f;//4.f / 3.f;
+constexpr float ASPECT_RATIO = 16.f / 9.f;
 constexpr float NORM_HEIGHT = 1.f / ASPECT_RATIO;
 
-const char *BG_COLOR = "grey";
+constexpr glm::vec4 BG_COLOR = Color::darkgrey;
 
 constexpr float BUTTON_PANEL_WIDTH = 0.5f;
-const char *BUTTON_LINE_COLOR = "white";
-const char *BUTTON_FILL_COLOR = "blue";
+constexpr glm::vec4 BUTTON_LINE_COLOR = Color::white;
+constexpr glm::vec4 BUTTON_FILL_COLOR = Color::blue;
 float BUTTON_LINE_THICKNESS = 0.005f;
 constexpr float BUTTON_RADIUS = 0.06f;
 
-const char *FONT_FG = "yellow";
-const char *FONT_FG2 = "yellow";
-const char *FONT_BG = "transparent";
-const char *FONT_OUTLINE = "white";
+constexpr glm::vec4 FONT_FG = Color::yellow;
+constexpr glm::vec4 FONT_FG2 = Color::yellow;
+constexpr glm::vec4 FONT_BG = Color::transparent;
+constexpr glm::vec4 FONT_OUTLINE = Color::white;
+constexpr glm::vec4 FONT_OUTLINE2 = Color::white;
 constexpr float FONT_OUTLINE_FACTOR = 0.0f;
 constexpr float FONT_WIDTH = 0.15f;
-constexpr float FONT_ENLARGE_SCALE = 1.2f;
+constexpr float FONT_ENLARGE_SCALE = 1.3f;
 const glm::vec2 FONT_OFFSET = {-0.02f, 0.05f};
 
-glm::vec4 get_color(const std::string &color) {
-    // based on tableau 10
-    const std::map<std::string, uint32_t> colors{
-        {"blue", 0x5778a4},
-        {"orange", 0xe49444},
-        {"red", 0xd1615d},
-        {"teal", 0x85b6b2},
-        {"green", 0x6a9f58},
-        {"yellow", 0xe7ca60},
-        {"purple", 0xa87c9f},
-        {"pink", 0xf1a2a9},
-        {"brown", 0x967662},
-        {"grey", 0xb8b0ac},
-        {"white", 0xffffff},
-    };
+constexpr float BOUNCE_ANIM_INITIAL_VEL = -0.25f;
+constexpr float BOUNCE_ANIM_ACC = 1.f;
+constexpr float BOUNCE_ANIM_DECAY = 0.75f;
+constexpr float BOUNCE_ANIM_DURATION_SEC = 2.5f;
 
-    if (color == "transparent") {
-        return {0.f, 0.f, 0.f, 0.f};
-    }
-
-    if (colors.find(color) == colors.end()) {
-        LOG("no such color: %s", color.c_str());
-    }
-
-    uint32_t c = colors.at(color);
-    uint8_t r = static_cast<uint8_t>(c >> 16);
-    uint8_t g = (c >> 8) & 0xff;
-    uint8_t b = c & 0xff;
-
-    return {r / 255.f, g / 255.f, b / 255.f, 1.0f};
-}
+constexpr float GAME_DELAY_DURATION_SEC = 1.f;
 
 enum class AudioEnum { BGM, CORRECT, WIN };
 
@@ -91,9 +70,12 @@ struct AppState {
     SDL_Window *window = nullptr;
     SDL_Renderer *renderer = nullptr;
     SDL_GLContext gl_ctx;
-
     SDL_AudioDeviceID audio_device = 0;
+
     std::map<AudioEnum, Audio> audio;
+
+    VertexArrayPtr vao{{}, {}};
+    Shape draw_area_bg;
 
     bool init = false;
     std::array<int, SEQ_LEN> number_sequence;
@@ -101,6 +83,7 @@ struct AppState {
 
     FontAtlas font;
     FontShader font_shader;
+
     std::array<VertexBufferPtr, 10> number{
         VertexBufferPtr{{}, {}},
         VertexBufferPtr{{}, {}},
@@ -116,15 +99,16 @@ struct AppState {
 
     std::array<BBox, 10> number_bbox;
 
-    Shape draw_area_bg;
-
-    VertexArrayPtr vao{{}, {}};
-
     ShapeShader shape_shader;
-    Shape button; 
+    Shape button;
     std::array<glm::vec2, 10> button_center;
 
-    uint64_t last_tick = 0;
+    // time dependent events
+    uint64_t bounce_anim_start = 0;
+    uint64_t bounce_anim_end = 0;
+    float bounce_vel = -1.f;
+
+    uint64_t game_delay_end = 0;
 };
 
 bool resize_event(AppState &as) {
@@ -173,27 +157,41 @@ bool resize_event(AppState &as) {
     return true;
 }
 
+void init_game(AppState &as) {
+    std::random_device rd;
+    std::mt19937 g(rd());
+    std::uniform_int_distribution<> dice(0, 9);
+
+    std::generate(as.number_sequence.begin(), as.number_sequence.end(), [&]{ return dice(g); });
+    std::fill(as.number_done.begin(), as.number_done.end(), false);
+
+    resize_event(as);
+}
+
 void mouse_up_event(AppState &as) {
+    if (as.game_delay_end > 0) {
+        return;
+    }
+
     float cx = 0, cy = 0;
     SDL_GetMouseState(&cx, &cy);
 
     glm::vec2 pos = screen_pos_to_normalize_pos(as.shape_shader, {cx, cy});
     glm::vec2 radius{BUTTON_RADIUS, BUTTON_RADIUS};
 
-    for (size_t i=0; i < as.button_center.size(); i++) {
+    for (size_t i = 0; i < as.button_center.size(); i++) {
         const glm::vec2 &c = as.button_center[i];
         glm::vec2 start = c - radius;
         glm::vec2 end = c + radius;
 
         if ((pos.x > start.x) && (pos.x < end.x) && (pos.y > start.y) && (pos.y < end.y)) {
             int num_click = static_cast<int>(i + 1) % 10;
-            LOG("%d", num_click);
 
-            for (size_t j=0; j < as.number_done.size(); j++) {
+            for (size_t j = 0; j < as.number_done.size(); j++) {
                 if (!as.number_done[j]) {
-                    LOG("%d == %d", num_click, as.number_sequence[j]);
                     if (num_click == as.number_sequence[j]) {
                         as.number_done[j] = true;
+                        as.bounce_anim_start = 0;
                     }
 
                     break;
@@ -203,22 +201,13 @@ void mouse_up_event(AppState &as) {
             break;
         }
     }
-}
 
-void init_game(AppState &as) {
-    std::random_device rd;
-    std::mt19937 g(rd());
-    std::uniform_int_distribution<> dice(0, 9);
-
-    for (int &a: as.number_sequence) {
-        a = dice(g);
+    // check if we wont
+    auto is_true = [](bool b) { return b; };
+    if (std::all_of(as.number_done.begin(), as.number_done.end(), is_true)) {
+        as.audio[AudioEnum::WIN].play();
+        as.game_delay_end = SDL_GetTicksNS() + SDL_SECONDS_TO_NS(GAME_DELAY_DURATION_SEC);
     }
-
-    for (bool &b: as.number_done) {
-        b = false;
-    }
-
-    resize_event(as);
 }
 
 bool init_audio(AppState &as, const std::string &base_path) {
@@ -228,7 +217,7 @@ bool init_audio(AppState &as, const std::string &base_path) {
         return false;
     }
 
-    if (auto w = load_ogg(as.audio_device, (base_path + "bgm.ogg").c_str(), 0.1f)) {
+    if (auto w = load_ogg(as.audio_device, (base_path + "bgm.ogg").c_str())) {
         as.audio[AudioEnum::BGM] = *w;
     } else {
         return false;
@@ -285,9 +274,9 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
     base_path = "";
 #endif
 
-    // if (!init_audio(*as, base_path)) {
-    //     return SDL_APP_FAILURE;
-    // }
+    if (!init_audio(*as, base_path)) {
+        return SDL_APP_FAILURE;
+    }
 
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
@@ -315,7 +304,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
         return SDL_APP_FAILURE;
     }
 
-    for (size_t i=0; i < as->number.size(); i++) {
+    for (size_t i = 0; i < as->number.size(); i++) {
         auto [vertex_buffer, bbox] = as->font.make_text(std::to_string(i).c_str(), true);
         as->number[i] = std::move(vertex_buffer);
         as->number_bbox[i] = bbox;
@@ -341,7 +330,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
             {0.f, h},
         };
 
-        as->draw_area_bg = make_shape(vertex, 0, {}, get_color(BG_COLOR));
+        as->draw_area_bg = make_shape(vertex, 0, {}, BG_COLOR);
     }
 
     {
@@ -352,29 +341,28 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
             {-BUTTON_RADIUS, BUTTON_RADIUS},
         };
 
-        as->button = make_shape(vertex, BUTTON_LINE_THICKNESS, get_color(BUTTON_LINE_COLOR), get_color(BUTTON_FILL_COLOR));
+        as->button =
+            make_shape(vertex, BUTTON_LINE_THICKNESS, BUTTON_LINE_COLOR, BUTTON_FILL_COLOR);
     }
 
     // position for the src and dst shape
     float xdiv = 3 * 2;
     float ydiv = 4 * 2;
 
-    size_t idx =0;
+    size_t idx = 0;
     for (size_t i = 0; i < 3; i++) {
-        for (size_t j=0; j < 3; j++) {
-            float x = static_cast<float>(2*j+1) / xdiv; 
-            float y = static_cast<float>(2*i+1) / ydiv; 
+        for (size_t j = 0; j < 3; j++) {
+            float x = static_cast<float>(2 * j + 1) / xdiv;
+            float y = static_cast<float>(2 * i + 1) / ydiv;
 
-            as->button_center[idx] = {x*BUTTON_PANEL_WIDTH, y * NORM_HEIGHT};
+            as->button_center[idx] = {x * BUTTON_PANEL_WIDTH, y * NORM_HEIGHT};
             idx++;
         }
     }
 
-    as->button_center[9] = {(2*1 + 1)/xdiv*BUTTON_PANEL_WIDTH, (2*3+1)/ydiv * NORM_HEIGHT}; 
+    as->button_center[9] = {(2 * 1 + 1) / xdiv * BUTTON_PANEL_WIDTH, (2 * 3 + 1) / ydiv * NORM_HEIGHT};
 
     init_game(*as);
-
-    as->last_tick = SDL_GetTicks();
 
     return SDL_APP_CONTINUE;
 }
@@ -437,13 +425,15 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result) {
 SDL_AppResult SDL_AppIterate(void *appstate) {
     AppState &as = *static_cast<AppState *>(appstate);
 
-    float dt = static_cast<float>(SDL_GetTicksNS() - as.last_tick) * 1e-9f;
-    as.last_tick = SDL_GetTicksNS();
+    if (as.game_delay_end != 0 && SDL_GetTicksNS() > as.game_delay_end) {
+        as.game_delay_end = 0;
+        init_game(as);
+    }
 
-    // auto &bgm = as.audio[AudioEnum::BGM];
-    // if (SDL_GetAudioStreamAvailable(bgm.stream) < static_cast<int>(bgm.data.size())) {
-    //     bgm.play();
-    // }
+    auto &bgm = as.audio[AudioEnum::BGM];
+    if (SDL_GetAudioStreamAvailable(bgm.stream) < static_cast<int>(bgm.data.size())) {
+        bgm.play();
+    }
 
 #ifndef __EMSCRIPTEN__
     SDL_GL_MakeCurrent(as.window, as.gl_ctx);
@@ -466,52 +456,82 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
     SDL_GetMouseState(&cx, &cy);
 
     draw_shape(as.shape_shader, as.draw_area_bg, true, false, false);
-   
-    as.font_shader.set_fg(get_color(FONT_FG));
-    as.font_shader.set_bg(get_color(FONT_BG));
-    as.font_shader.set_outline(get_color(FONT_OUTLINE));
+
+    as.font_shader.set_fg(FONT_FG);
+    as.font_shader.set_bg(FONT_BG);
+    as.font_shader.set_outline(FONT_OUTLINE);
     as.font_shader.set_outline_factor(FONT_OUTLINE_FACTOR);
     as.font_shader.set_font_target_width(FONT_WIDTH);
 
     size_t i = 0;
-    for (const auto &center: as.button_center) {
+    for (const auto &center : as.button_center) {
         as.button.trans = center;
         draw_shape(as.shape_shader, as.button, true, true, false);
 
-        glm::vec2 bbox_center = (as.number_bbox[i].start + as.number_bbox[i].end)*0.5f;
+        glm::vec2 bbox_center = (as.number_bbox[i].start + as.number_bbox[i].end) * 0.5f;
         bbox_center -= FONT_OFFSET;
         bbox_center *= FONT_WIDTH;
 
         as.font_shader.set_trans(center - bbox_center);
-        draw_vertex_buffer(as.font_shader.shader, as.number[(i+1)%10], as.font.tex);
+        draw_vertex_buffer(as.font_shader.shader, as.number[(i + 1) % 10], as.font.tex);
 
         i++;
     }
 
-    as.font_shader.set_bg(get_color(FONT_BG));
-    as.font_shader.set_outline(get_color("white"));
+    as.font_shader.set_bg(FONT_BG);
     as.font_shader.set_outline_factor(0.1f);
 
     float ydiv = 4 * 2;
-    for (size_t i=0; i < as.number_sequence.size(); i++) {
+    bool do_anim = true;
 
-        glm::vec2 pos{0.6 + static_cast<float>(i)*0.1, NORM_HEIGHT*3/ydiv};
+    for (size_t i = 0; i < as.number_sequence.size(); i++) {
+        glm::vec2 pos{0.6 + static_cast<float>(i) * 0.1, NORM_HEIGHT * 3 / ydiv};
 
         int num = as.number_sequence[i];
 
-        glm::vec2 bbox_center = (as.number_bbox[i].start + as.number_bbox[i].end)*0.5f;
+        glm::vec2 bbox_center = (as.number_bbox[i].start + as.number_bbox[i].end) * 0.5f;
         bbox_center -= FONT_OFFSET;
 
         if (as.number_done[i]) {
-            bbox_center *= FONT_WIDTH*FONT_ENLARGE_SCALE;
+            bbox_center *= FONT_WIDTH * FONT_ENLARGE_SCALE;
 
-            as.font_shader.set_font_target_width(FONT_WIDTH*FONT_ENLARGE_SCALE);
-            as.font_shader.set_fg(get_color(FONT_FG2));
+            as.font_shader.set_font_target_width(FONT_WIDTH * FONT_ENLARGE_SCALE);
+            as.font_shader.set_fg(FONT_FG2);
+            as.font_shader.set_outline(FONT_OUTLINE);
         } else {
             bbox_center *= FONT_WIDTH;
 
             as.font_shader.set_font_target_width(FONT_WIDTH);
-            as.font_shader.set_fg(get_color("transparent"));
+            as.font_shader.set_fg(Color::transparent);
+            as.font_shader.set_outline(FONT_OUTLINE2);
+
+            if (do_anim) {
+                if (as.bounce_anim_start == 0) {
+                    as.bounce_anim_start = SDL_GetTicksNS();
+                    as.bounce_anim_end = as.bounce_anim_start + SDL_SECONDS_TO_NS(BOUNCE_ANIM_DURATION_SEC);
+                    as.bounce_vel = BOUNCE_ANIM_INITIAL_VEL;
+                }
+
+                float u = as.bounce_vel;
+                float a = BOUNCE_ANIM_ACC;
+                float t = static_cast<float>(static_cast<double>(SDL_GetTicksNS() - as.bounce_anim_start) * 1e-9);
+                float d = u*t + a*t*t*0.5f;
+
+                if (d > 0) {
+                    d = 0;
+                    as.bounce_vel *= BOUNCE_ANIM_DECAY;
+                    as.bounce_anim_start = SDL_GetTicksNS();
+
+                    if (SDL_GetTicksNS() > as.bounce_anim_end) {
+                        as.bounce_vel = BOUNCE_ANIM_INITIAL_VEL;
+                        as.bounce_anim_end = as.bounce_anim_start + SDL_SECONDS_TO_NS(BOUNCE_ANIM_DURATION_SEC);
+                    }
+                }
+
+                pos.y += d;
+
+                do_anim = false;
+            }
         }
 
         as.font_shader.set_trans(pos - bbox_center);
@@ -522,3 +542,4 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
 
     return SDL_APP_CONTINUE;
 }
+

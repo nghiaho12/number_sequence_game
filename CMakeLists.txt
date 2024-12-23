@@ -24,6 +24,7 @@ add_executable(${EXECUTABLE_NAME}
     src/gl_helper.cpp
     src/gl_helper.hpp
     src/log.hpp
+    src/color_palette.hpp
 )
 
 target_link_libraries(${EXECUTABLE_NAME} PRIVATE SDL3::SDL3 ${OPENGL_LIBRARIES})

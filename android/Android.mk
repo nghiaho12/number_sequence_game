@@ -17,7 +17,8 @@ LOCAL_SRC_FILES := \
     font.hpp \
     gl_helper.cpp \
     gl_helper.hpp \
-    log.hpp
+    log.hpp \
+	color_palette.hpp
  
 SDL_PATH := ../SDL  # SDL \
 
