@@ -33,15 +33,15 @@ RUN cd /emsdk && \
     emmake make && \
     emmake make install
 
-WORKDIR /shape_game
-COPY CMakeLists.txt /shape_game
-COPY src/ /shape_game/src/
-COPY assets/ /shape_game/assets/
+WORKDIR /number_sequence_game
+COPY CMakeLists.txt /number_sequence_game
+COPY src/ /number_sequence_game/src/
+COPY assets/ /number_sequence_game/assets/
 
 RUN mkdir build && \
     cd build && \
     /bin/bash -c ". /emsdk/emsdk_env.sh && emcmake cmake .. && VERBOSE=1 emmake make"
 
-COPY wasm/index.html /shape_game/build
+COPY wasm/index.html /number_sequence_game/build
 
-CMD ["/usr/bin/python3", "-m", "http.server", "--directory", "/shape_game/build"]
+CMD ["/usr/bin/python3", "-m", "http.server", "--directory", "/number_sequence_game/build"]

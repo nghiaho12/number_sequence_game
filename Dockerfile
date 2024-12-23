@@ -20,9 +20,9 @@ RUN cd glm && \
     cmake --build build -- all && \
     cmake --build build -- install
 
-WORKDIR /shape_game
-COPY src/ /shape_game/src
-COPY CMakeLists.txt /shape_game
+WORKDIR /number_sequence_game
+COPY src/ /number_sequence_game/src
+COPY CMakeLists.txt /number_sequence_game
 
 RUN mkdir build && \
     cd build && \
@@ -30,4 +30,4 @@ RUN mkdir build && \
     make && \
     make install
 
-CMD ["/shape_game/build/shape_game"]
+CMD ["/number_sequence_game/build/number_sequence_game"]

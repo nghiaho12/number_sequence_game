@@ -27,23 +27,23 @@ cd build
 cmake ..
 make
 cd ..
-./build/shape_game
+./build/number_sequence_game
 ```
 
 Hit ESC to quit.
 
 ## Web
 ```
-docker build -f Dockerfile.wasm -t shape_game_wasm .
-docker run --rm --network=host shape_game_wasm
+docker build -f Dockerfile.wasm -t number_sequence_game_wasm .
+docker run --rm --network=host number_sequence_game_wasm
 ```
 
 Point your browser to http://localhost:8000.
 
 ## Android
 ```
-docker build -f Dockerfile.android -t shape_game_android .
-docker run --rm --network=host shape_game_android
+docker build -f Dockerfile.android -t number_sequence_game_android .
+docker run --rm --network=host number_sequence_game_android
 ```
 
 Point your browser to http://[IP of host]:8000 on your Android web browser and download the APK.

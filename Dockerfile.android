@@ -22,51 +22,51 @@ RUN cd SDL/build-scripts && \
     PATH=$PATH:/android-ndk-r27c ./androidbuildlibs.sh
 
 # Create Android project with an empty main.cpp to cache the gradle download step
-RUN mkdir -p /shape_game/src && \
-    touch /shape_game/src/main.cpp && \
+RUN mkdir -p /number_sequence_game/src && \
+    touch /number_sequence_game/src/main.cpp && \
     cd /SDL/build-scripts && \
-    ./create-android-project.py org.libsdl.shape_game /shape_game/src/main.cpp
+    ./create-android-project.py org.libsdl.number_sequence_game /number_sequence_game/src/main.cpp
 
 # Build the empty project to get everything in place
-RUN cd /SDL/build/org.libsdl.shape_game && \
+RUN cd /SDL/build/org.libsdl.number_sequence_game && \
     ANDROID_HOME=/android-sdk ANDROID_NDK_HOME=android-ndk-r27c ./gradlew assembleDebug
 
 # GLM is header only
 RUN cd / && git clone -b 1.0.1 --depth 1 https://github.com/g-truc/glm.git
-RUN cd /SDL/build/org.libsdl.shape_game/app/jni/src && \
+RUN cd /SDL/build/org.libsdl.number_sequence_game/app/jni/src && \
     ln -s /glm/glm .
 
 # Enable C++ STL
-RUN cd /SDL/build/org.libsdl.shape_game/app/jni && \
+RUN cd /SDL/build/org.libsdl.number_sequence_game/app/jni && \
     sed -i 's/# APP_STL/APP_STL/g' Application.mk
 
 # Enable C++20
-RUN cd /SDL/build/org.libsdl.shape_game/app/jni/src && \
+RUN cd /SDL/build/org.libsdl.number_sequence_game/app/jni/src && \
     echo 'set(CMAKE_CXX_STANDARD 20)' >> CMakeLists.txt && \
-    echo 'APP_CPPFLAGS := -std=c++20' >> /SDL/build/org.libsdl.shape_game/app/jni/Application.mk
+    echo 'APP_CPPFLAGS := -std=c++20' >> /SDL/build/org.libsdl.number_sequence_game/app/jni/Application.mk
 
 # Enable x86_64 build for debugging on the emulator
-# RUN cd /SDL/build/org.libsdl.shape_game/app && \
+# RUN cd /SDL/build/org.libsdl.number_sequence_game/app && \
 #     sed -i "s/abiFilters 'arm64-v8a'/abiFilters 'arm64-v8a','x86_64'/g" build.gradle
 
 # For resizing icon
 RUN apt install -y imagemagick
 
 # Build our actual project
-COPY src /SDL/build/org.libsdl.shape_game/app/jni/src/
-COPY assets /SDL/build/org.libsdl.shape_game/app/src/main/assets/
-COPY android/Android.mk /SDL/build/org.libsdl.shape_game/app/jni/src
-COPY android/res/values /SDL/build/org.libsdl.shape_game/app/src/main/res/values/
+COPY src /SDL/build/org.libsdl.number_sequence_game/app/jni/src/
+COPY assets /SDL/build/org.libsdl.number_sequence_game/app/src/main/assets/
+COPY android/Android.mk /SDL/build/org.libsdl.number_sequence_game/app/jni/src
+COPY android/res/values /SDL/build/org.libsdl.number_sequence_game/app/src/main/res/values/
 COPY android/res/ic_launcher.png /
 
-RUN cd /SDL/build/org.libsdl.shape_game/app/src/main/res && \
+RUN cd /SDL/build/org.libsdl.number_sequence_game/app/src/main/res && \
     cp /ic_launcher.png mipmap-xxxhdpi/ && \
     convert -resize 144 /ic_launcher.png mipmap-xxhdpi/ic_launcher.png && \
     convert -resize 96 /ic_launcher.png mipmap-xhdpi/ic_launcher.png && \
     convert -resize 72 /ic_launcher.png mipmap-hdpi/ic_launcher.png && \
     convert -resize 48 /ic_launcher.png mipmap-mdpi/ic_launcher.png
 
-RUN cd /SDL/build/org.libsdl.shape_game && \
+RUN cd /SDL/build/org.libsdl.number_sequence_game && \
     ANDROID_HOME=/android-sdk ANDROID_NDK_HOME=/android-ndk-r27c ./gradlew assembleDebug
 
-CMD ["/usr/bin/python3", "-m", "http.server", "--directory", "/SDL/build/org.libsdl.shape_game/app/build/outputs/apk/debug"]
+CMD ["/usr/bin/python3", "-m", "http.server", "--directory", "/SDL/build/org.libsdl.number_sequence_game/app/build/outputs/apk/debug"]
