@@ -22,11 +22,8 @@ sudo apt install docker-ce
 Install SDL 3 (https://github.com/libsdl-org/SDL/)
 
 ```
-mkdir build
-cd build
-cmake ..
-make
-cd ..
+cmake -B build
+cmake --build build
 ./build/number_sequence_game
 ```
 

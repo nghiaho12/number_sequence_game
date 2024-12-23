@@ -7,8 +7,8 @@
 #include <SDL3/SDL_opengles2.h>
 #include <SDL3/SDL_timer.h>
 
-#include <array>
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdio>
 #include <glm/glm.hpp>
@@ -24,11 +24,11 @@
 #endif
 
 #include "audio.hpp"
+#include "color_palette.hpp"
 #include "font.hpp"
 #include "geometry.hpp"
 #include "gl_helper.hpp"
 #include "log.hpp"
-#include "color_palette.hpp"
 
 // All co-ordinates used are normalized as follows
 // x: [0.0, 1.0]
@@ -74,15 +74,20 @@ struct AppState {
 
     std::map<AudioEnum, Audio> audio;
 
-    VertexArrayPtr vao{{}, {}};
-    Shape draw_area_bg;
-
     bool init = false;
+    bool mouse_down = false;
+
     std::array<int, SEQ_LEN> number_sequence;
     std::array<bool, SEQ_LEN> number_done;
 
+    VertexArrayPtr vao{{}, {}};
+
     FontAtlas font;
     FontShader font_shader;
+
+    ShapeShader shape_shader;
+    Shape draw_area_bg;
+    Shape button;
 
     std::array<VertexBufferPtr, 10> number{
         VertexBufferPtr{{}, {}},
@@ -98,9 +103,6 @@ struct AppState {
     };
 
     std::array<BBox, 10> number_bbox;
-
-    ShapeShader shape_shader;
-    Shape button;
     std::array<glm::vec2, 10> button_center;
 
     // time dependent events
@@ -162,16 +164,22 @@ void init_game(AppState &as) {
     std::mt19937 g(rd());
     std::uniform_int_distribution<> dice(0, 9);
 
-    std::generate(as.number_sequence.begin(), as.number_sequence.end(), [&]{ return dice(g); });
+    std::generate(as.number_sequence.begin(), as.number_sequence.end(), [&] { return dice(g); });
     std::fill(as.number_done.begin(), as.number_done.end(), false);
 
     resize_event(as);
 }
 
-void mouse_up_event(AppState &as) {
+void mouse_down_event(AppState &as) {
     if (as.game_delay_end > 0) {
         return;
     }
+
+    if (as.mouse_down) {
+        return;
+    }
+
+    as.mouse_down = true;
 
     float cx = 0, cy = 0;
     SDL_GetMouseState(&cx, &cy);
@@ -218,7 +226,7 @@ bool init_audio(AppState &as, const std::string &base_path) {
         return false;
     }
 
-    if (auto w = load_ogg(as.audio_device, (base_path + "bgm.ogg").c_str(), 0.1f)) {
+    if (auto w = load_ogg(as.audio_device, (base_path + "bgm.ogg").c_str(), 0.2f)) {
         as.audio[AudioEnum::BGM] = *w;
     } else {
         return false;
@@ -342,8 +350,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
             {-BUTTON_RADIUS, BUTTON_RADIUS},
         };
 
-        as->button =
-            make_shape(vertex, BUTTON_LINE_THICKNESS, BUTTON_LINE_COLOR, BUTTON_FILL_COLOR);
+        as->button = make_shape(vertex, BUTTON_LINE_THICKNESS, BUTTON_LINE_COLOR, BUTTON_FILL_COLOR);
     }
 
     // position for the src and dst shape
@@ -388,13 +395,11 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
             break;
 
         case SDL_EVENT_MOUSE_BUTTON_DOWN:
-            break;
-
-        case SDL_EVENT_MOUSE_MOTION:
+            mouse_down_event(as);
             break;
 
         case SDL_EVENT_MOUSE_BUTTON_UP:
-            mouse_up_event(as);
+            as.mouse_down = false;
             break;
     }
 
@@ -516,7 +521,7 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
                 float u = as.bounce_vel;
                 float a = BOUNCE_ANIM_ACC;
                 float t = static_cast<float>(static_cast<double>(SDL_GetTicksNS() - as.bounce_anim_start) * 1e-9);
-                float d = u*t + a*t*t*0.5f;
+                float d = u * t + a * t * t * 0.5f;
 
                 if (d > 0) {
                     d = 0;
@@ -543,4 +548,3 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
 
     return SDL_APP_CONTINUE;
 }
-
