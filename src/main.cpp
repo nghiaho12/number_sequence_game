@@ -285,7 +285,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
     SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
 
     if (!SDL_CreateWindowAndRenderer(
-            "Shape Game", 640, 480, SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL, &as->window, &as->renderer)) {
+            "Number Sequence Game", 640, 480, SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL, &as->window, &as->renderer)) {
         LOG("SDL_CreateWindowAndRenderer failed");
         return SDL_APP_FAILURE;
     }
