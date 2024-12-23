@@ -1,4 +1,4 @@
-Simple shape matching game for kids written using SDL3 and OpenGL ES.
+Simple number sequence game for kids written using SDL3 and OpenGL ES.
 It has been tested on Ubuntu 24.04, Android 14 and web (Firefox 130.0, Chromimum 131.0).
 
 You might find some code snippets in here useful for other projects, such as
@@ -50,9 +50,9 @@ Point your browser to http://[IP of host]:8000 on your Android web browser and d
 
 # Credits
 Sound assets 
-- https://opengameart.org/content/fun-a-bgm-track
-- https://opengameart.org/content/6-user-interface-ding-clicks
-- https://opengameart.org/content/well-done
+- https://opengameart.org/content/win-sound-effect
+- https://kenney.nl/assets/ui-audio
+- https://soundimage.org/funny-2
 
 Ogg Vorbis decoder
 - https://github.com/nothings/stb
