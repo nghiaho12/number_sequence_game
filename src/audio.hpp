@@ -10,7 +10,7 @@ struct Audio {
     SDL_AudioSpec spec{};
     std::vector<uint8_t> data;
 
-    void play();
+    void play(bool clear_stream);
 };
 
 std::optional<Audio> load_ogg(SDL_AudioDeviceID audio_device, const char *path, float volume = 1.0f);

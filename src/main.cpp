@@ -193,7 +193,7 @@ void mouse_down_event(AppState &as) {
         glm::vec2 end = c + radius;
 
         if ((pos.x > start.x) && (pos.x < end.x) && (pos.y > start.y) && (pos.y < end.y)) {
-            as.audio[AudioEnum::CLICK].play();
+            as.audio[AudioEnum::CLICK].play(true);
             int num_click = static_cast<int>(i + 1) % 10;
 
             for (size_t j = 0; j < as.number_done.size(); j++) {
@@ -214,7 +214,7 @@ void mouse_down_event(AppState &as) {
     // check if we wont
     auto is_true = [](bool b) { return b; };
     if (std::all_of(as.number_done.begin(), as.number_done.end(), is_true)) {
-        as.audio[AudioEnum::WIN].play();
+        as.audio[AudioEnum::WIN].play(true);
         as.game_delay_end = SDL_GetTicksNS() + SDL_SECONDS_TO_NS(GAME_DELAY_DURATION_SEC);
     }
 }
@@ -438,7 +438,7 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
 
     auto &bgm = as.audio[AudioEnum::BGM];
     if (SDL_GetAudioStreamAvailable(bgm.stream) < static_cast<int>(bgm.data.size())) {
-        bgm.play();
+        bgm.play(false);
     }
 
 #ifndef __EMSCRIPTEN__

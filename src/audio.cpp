@@ -8,8 +8,12 @@
 #include "log.hpp"
 #include "stb_vorbis.hpp"
 
-void Audio::play() {
+void Audio::play(bool clear_stream) {
     if (stream) {
+        if (clear_stream) {
+            SDL_ClearAudioStream(stream);
+        }
+
         SDL_PutAudioStreamData(stream, data.data(), static_cast<int>(data.size()));
         SDL_ResumeAudioStreamDevice(stream);
     }
