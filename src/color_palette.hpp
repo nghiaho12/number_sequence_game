@@ -16,5 +16,6 @@ struct Color {
     static constexpr glm::vec4 grey{0.7216f, 0.6902f, 0.6745f, 1.f};
     static constexpr glm::vec4 white{1.0000f, 1.0000f, 1.0000f, 1.f};
     static constexpr glm::vec4 darkgrey{0.3f, 0.3f, 0.3f, 1.f};
+    static constexpr glm::vec4 black{0.f, 0.f, 0.f, 1.f};
     static constexpr glm::vec4 transparent{0.f};
 };

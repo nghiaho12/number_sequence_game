@@ -64,7 +64,7 @@ constexpr float BOUNCE_ANIM_DURATION_SEC = 2.5f;
 
 constexpr float GAME_DELAY_DURATION_SEC = 1.f;
 
-enum class AudioEnum { BGM, CORRECT, WIN };
+enum class AudioEnum { BGM, CLICK, WIN };
 
 struct AppState {
     SDL_Window *window = nullptr;
@@ -185,6 +185,7 @@ void mouse_up_event(AppState &as) {
         glm::vec2 end = c + radius;
 
         if ((pos.x > start.x) && (pos.x < end.x) && (pos.y > start.y) && (pos.y < end.y)) {
+            as.audio[AudioEnum::CLICK].play();
             int num_click = static_cast<int>(i + 1) % 10;
 
             for (size_t j = 0; j < as.number_done.size(); j++) {
@@ -217,7 +218,7 @@ bool init_audio(AppState &as, const std::string &base_path) {
         return false;
     }
 
-    if (auto w = load_ogg(as.audio_device, (base_path + "bgm.ogg").c_str())) {
+    if (auto w = load_ogg(as.audio_device, (base_path + "bgm.ogg").c_str(), 0.1f)) {
         as.audio[AudioEnum::BGM] = *w;
     } else {
         return false;
@@ -229,8 +230,8 @@ bool init_audio(AppState &as, const std::string &base_path) {
         return false;
     }
 
-    if (auto w = load_wav(as.audio_device, (base_path + "ding.wav").c_str())) {
-        as.audio[AudioEnum::CORRECT] = *w;
+    if (auto w = load_ogg(as.audio_device, (base_path + "switch30.ogg").c_str())) {
+        as.audio[AudioEnum::CLICK] = *w;
     } else {
         return false;
     }
