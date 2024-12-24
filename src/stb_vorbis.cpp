@@ -2084,7 +2084,7 @@ static void decode_residue(vorb *f, float *residue_buffers[], int ch, int n, int
 #endif
                     }
                     for (i = 0; i < classwords && pcount < part_read; ++i, ++pcount) {
-                        int z = static_cast<int>(r->begin + static_cast<uint32>(pcount )* r->part_size);
+                        int z = static_cast<int>(r->begin + static_cast<uint32>(pcount) * r->part_size);
 #ifndef STB_VORBIS_DIVIDES_IN_RESIDUE
                         int c = part_classdata[0][class_set][i];
 #else
@@ -2099,8 +2099,14 @@ static void decode_residue(vorb *f, float *residue_buffers[], int ch, int n, int
                                 goto done;
 #else
                             // saves 1%
-                            if (!codebook_decode_deinterleave_repeat(
-                                    f, book, residue_buffers, ch, &c_inter, &p_inter, n, static_cast<int>(r->part_size)))
+                            if (!codebook_decode_deinterleave_repeat(f,
+                                                                     book,
+                                                                     residue_buffers,
+                                                                     ch,
+                                                                     &c_inter,
+                                                                     &p_inter,
+                                                                     n,
+                                                                     static_cast<int>(r->part_size)))
                                 goto done;
 #endif
                         } else {
@@ -2115,7 +2121,7 @@ static void decode_residue(vorb *f, float *residue_buffers[], int ch, int n, int
                 }
             } else if (ch > 2) {
                 while (pcount < part_read) {
-                    int z = static_cast<int>(r->begin +static_cast<uint32>( pcount) * r->part_size);
+                    int z = static_cast<int>(r->begin + static_cast<uint32>(pcount) * r->part_size);
                     int c_inter = z % ch, p_inter = z / ch;
                     if (pass == 0) {
                         Codebook *c = f->codebooks + r->classbook;
@@ -2141,8 +2147,14 @@ static void decode_residue(vorb *f, float *residue_buffers[], int ch, int n, int
                         int b = r->residue_books[c][pass];
                         if (b >= 0) {
                             Codebook *book = f->codebooks + b;
-                            if (!codebook_decode_deinterleave_repeat(
-                                    f, book, residue_buffers, ch, &c_inter, &p_inter, n, static_cast<int>(r->part_size)))
+                            if (!codebook_decode_deinterleave_repeat(f,
+                                                                     book,
+                                                                     residue_buffers,
+                                                                     ch,
+                                                                     &c_inter,
+                                                                     &p_inter,
+                                                                     n,
+                                                                     static_cast<int>(r->part_size)))
                                 goto done;
                         } else {
                             z += r->part_size;
@@ -2192,7 +2204,7 @@ static void decode_residue(vorb *f, float *residue_buffers[], int ch, int n, int
                         int b = r->residue_books[c][pass];
                         if (b >= 0) {
                             float *target = residue_buffers[j];
-                            int offset = static_cast<int>(r->begin + static_cast<uint32>(pcount )* r->part_size);
+                            int offset = static_cast<int>(r->begin + static_cast<uint32>(pcount) * r->part_size);
                             int n = static_cast<int>(r->part_size);
                             Codebook *book = f->codebooks + b;
                             if (!residue_decode(f, book, target, offset, n, rtype)) goto done;
@@ -3295,8 +3307,8 @@ static int vorbis_decode_packet_rest(vorb *f,
         // this isn't to spec, but spec would require us to read ahead
         // and decode the size of all current frames--could be done,
         // but presumably it's not a commonly used feature
-        f->current_loc = 0u - static_cast<uint32>(n2);  // start of first frame is positioned for discard (NB this is an intentional unsigned
-                                   // overflow/wrap-around)
+        f->current_loc = 0u - static_cast<uint32>(n2);  // start of first frame is positioned for discard (NB this is an
+                                                        // intentional unsigned overflow/wrap-around)
         // we might have to discard samples "from" the next frame too,
         // if we're lapping a large block then a small at the start?
         f->discard_samples_deferred = n - right_end;
@@ -3666,7 +3678,8 @@ static int start_decoder(vorb *f) {
 
         if (c->sparse && total >= c->entries >> 2) {
             // convert sparse items to non-sparse!
-            if (c->entries > (int)f->setup_temp_memory_required) f->setup_temp_memory_required = static_cast<uint32>(c->entries);
+            if (c->entries > (int)f->setup_temp_memory_required)
+                f->setup_temp_memory_required = static_cast<uint32>(c->entries);
 
             c->codeword_lengths = (uint8 *)setup_malloc(f, c->entries);
             if (c->codeword_lengths == NULL) return error(f, VORBIS_outofmem);
@@ -3700,12 +3713,14 @@ static int start_decoder(vorb *f) {
             if (c->sorted_entries) {
                 c->codeword_lengths = (uint8 *)setup_malloc(f, c->sorted_entries);
                 if (!c->codeword_lengths) return error(f, VORBIS_outofmem);
-                c->codewords = (uint32 *)setup_temp_malloc(f, static_cast<int>(sizeof(*c->codewords)) * c->sorted_entries);
+                c->codewords =
+                    (uint32 *)setup_temp_malloc(f, static_cast<int>(sizeof(*c->codewords)) * c->sorted_entries);
                 if (!c->codewords) return error(f, VORBIS_outofmem);
                 values = (uint32 *)setup_temp_malloc(f, static_cast<int>(sizeof(*values)) * c->sorted_entries);
                 if (!values) return error(f, VORBIS_outofmem);
             }
-            size = static_cast<uint32>(static_cast<uint32>(c->entries) + (sizeof(*c->codewords) + sizeof(*values)) * static_cast<uint32>(c->sorted_entries));
+            size = static_cast<uint32>(static_cast<uint32>(c->entries) + (sizeof(*c->codewords) + sizeof(*values)) *
+                                                                             static_cast<uint32>(c->sorted_entries));
             if (size > f->setup_temp_memory_required) f->setup_temp_memory_required = size;
         }
 
@@ -3716,11 +3731,13 @@ static int start_decoder(vorb *f) {
 
         if (c->sorted_entries) {
             // allocate an extra slot for sentinels
-            c->sorted_codewords = (uint32 *)setup_malloc(f, static_cast<int>(sizeof(*c->sorted_codewords)) * (c->sorted_entries + 1));
+            c->sorted_codewords =
+                (uint32 *)setup_malloc(f, static_cast<int>(sizeof(*c->sorted_codewords)) * (c->sorted_entries + 1));
             if (c->sorted_codewords == NULL) return error(f, VORBIS_outofmem);
             // allocate an extra slot at the front so that c->sorted_values[-1] is defined
             // so that we can catch that case without an extra if
-            c->sorted_values = (int *)setup_malloc(f, static_cast<int>(sizeof(*c->sorted_values)) * (c->sorted_entries + 1));
+            c->sorted_values =
+                (int *)setup_malloc(f, static_cast<int>(sizeof(*c->sorted_values)) * (c->sorted_entries + 1));
             if (c->sorted_values == NULL) return error(f, VORBIS_outofmem);
             ++c->sorted_values;
             c->sorted_values[-1] = -1;
@@ -3771,11 +3788,11 @@ static int start_decoder(vorb *f) {
                 // pre-expand the lookup1-style multiplicands, to avoid a divide in the inner loop
                 if (sparse) {
                     if (c->sorted_entries == 0) goto skip;
-                    c->multiplicands =
-                        (codetype *)setup_malloc(f, static_cast<int>(sizeof(c->multiplicands[0])) * c->sorted_entries * c->dimensions);
+                    c->multiplicands = (codetype *)setup_malloc(
+                        f, static_cast<int>(sizeof(c->multiplicands[0])) * c->sorted_entries * c->dimensions);
                 } else
-                    c->multiplicands =
-                        (codetype *)setup_malloc(f, static_cast<int>(sizeof(c->multiplicands[0])) * c->entries * c->dimensions);
+                    c->multiplicands = (codetype *)setup_malloc(
+                        f, static_cast<int>(sizeof(c->multiplicands[0])) * c->entries * c->dimensions);
                 if (c->multiplicands == NULL) {
                     setup_temp_free(f, mults, static_cast<int>(sizeof(mults[0]) * c->lookup_values));
                     return error(f, VORBIS_outofmem);
@@ -3804,7 +3821,8 @@ static int start_decoder(vorb *f) {
             {
                 float last = 0;
                 CHECK(f);
-                c->multiplicands = (codetype *)setup_malloc(f, static_cast<int>(sizeof(c->multiplicands[0]) * c->lookup_values));
+                c->multiplicands =
+                    (codetype *)setup_malloc(f, static_cast<int>(sizeof(c->multiplicands[0]) * c->lookup_values));
                 if (c->multiplicands == NULL) {
                     setup_temp_free(f, mults, static_cast<int>(sizeof(mults[0]) * c->lookup_values));
                     return error(f, VORBIS_outofmem);
@@ -3941,7 +3959,8 @@ static int start_decoder(vorb *f) {
         }
         // precompute the classifications[] array to avoid inner-loop mod/divide
         // call it 'classdata' since we already have r->classifications
-        r->classdata = (uint8 **)setup_malloc(f, static_cast<int>(sizeof(*r->classdata)) * f->codebooks[r->classbook].entries);
+        r->classdata =
+            (uint8 **)setup_malloc(f, static_cast<int>(sizeof(*r->classdata)) * f->codebooks[r->classbook].entries);
         if (!r->classdata) return error(f, VORBIS_outofmem);
         memset(r->classdata, 0, sizeof(*r->classdata) * static_cast<size_t>(f->codebooks[r->classbook].entries));
         for (j = 0; j < f->codebooks[r->classbook].entries; ++j) {
@@ -4062,7 +4081,8 @@ static int start_decoder(vorb *f) {
             if (part_read > max_part_read) max_part_read = part_read;
         }
 #ifndef STB_VORBIS_DIVIDES_IN_RESIDUE
-        classify_mem = static_cast<uint32>(static_cast<uint32>(f->channels) * (sizeof(void *) + static_cast<uint32>(max_part_read) * sizeof(uint8 *)));
+        classify_mem = static_cast<uint32>(static_cast<uint32>(f->channels) *
+                                           (sizeof(void *) + static_cast<uint32>(max_part_read) * sizeof(uint8 *)));
 #else
         classify_mem = f->channels * (sizeof(void *) + max_part_read * sizeof(int *));
 #endif
@@ -4263,15 +4283,15 @@ static int vorbis_search_for_page_pushdata(vorb *f, uint8 *data, int data_len) {
                     n = f->page_crc_tests++;
                     f->scan[n].bytes_left = len - j;
                     f->scan[n].crc_so_far = crc;
-                    f->scan[n].goal_crc =
-                        static_cast<uint32>(data[i + 22] + (data[i + 23] << 8) + (data[i + 24] << 16) + (data[i + 25] << 24));
+                    f->scan[n].goal_crc = static_cast<uint32>(data[i + 22] + (data[i + 23] << 8) +
+                                                              (data[i + 24] << 16) + (data[i + 25] << 24));
                     // if the last frame on a page is continued to the next, then
                     // we can't recover the sample_loc immediately
                     if (data[i + 27 + data[i + 26] - 1] == 255)
                         f->scan[n].sample_loc = static_cast<uint32>(~0);
                     else
-                        f->scan[n].sample_loc =
-                            static_cast<uint32>(data[i + 6] + (data[i + 7] << 8) + (data[i + 8] << 16) + (data[i + 9] << 24));
+                        f->scan[n].sample_loc = static_cast<uint32>(data[i + 6] + (data[i + 7] << 8) +
+                                                                    (data[i + 8] << 16) + (data[i + 9] << 24));
                     f->scan[n].bytes_done = i + j;
                     if (f->page_crc_tests == STB_VORBIS_PUSHDATA_CRC_COUNT) break;
                     // keep going if we still have room for more
@@ -4450,7 +4470,8 @@ static uint32 vorbis_find_page(stb_vorbis *f, uint32 *end, uint32 *last) {
                 for (; i < 27; ++i) header[i] = get8(f);
                 if (f->eof) return 0;
                 if (header[4] != 0) goto invalid;
-                goal = static_cast<uint32>(header[22] + (header[23] << 8) + (header[24] << 16)) + ((uint32)header[25] << 24);
+                goal = static_cast<uint32>(header[22] + (header[23] << 8) + (header[24] << 16)) +
+                       ((uint32)header[25] << 24);
                 for (i = 22; i < 26; ++i) header[i] = 0;
                 crc = 0;
                 for (i = 0; i < 27; ++i) crc = crc32_update(crc, header[i]);
@@ -5173,7 +5194,7 @@ int stb_vorbis_decode_filename(const char *filename, int *channels, int *sample_
     if (sample_rate) *sample_rate = static_cast<int>(v->sample_rate);
     offset = data_len = 0;
     total = limit;
-    data = (short *)malloc(static_cast<unsigned long>(total )* sizeof(*data));
+    data = (short *)malloc(static_cast<unsigned long>(total) * sizeof(*data));
     if (data == NULL) {
         stb_vorbis_close(v);
         return -2;
@@ -5186,7 +5207,7 @@ int stb_vorbis_decode_filename(const char *filename, int *channels, int *sample_
         if (offset + limit > total) {
             short *data2;
             total *= 2;
-            data2 = (short *)realloc(data, static_cast<unsigned long>(total )* sizeof(*data));
+            data2 = (short *)realloc(data, static_cast<unsigned long>(total) * sizeof(*data));
             if (data2 == NULL) {
                 free(data);
                 stb_vorbis_close(v);
@@ -5211,7 +5232,7 @@ int stb_vorbis_decode_memory(const uint8 *mem, int len, int *channels, int *samp
     if (sample_rate) *sample_rate = static_cast<int>(v->sample_rate);
     offset = data_len = 0;
     total = limit;
-    data = (short *)malloc(static_cast<unsigned long>(total )* sizeof(*data));
+    data = (short *)malloc(static_cast<unsigned long>(total) * sizeof(*data));
     if (data == NULL) {
         stb_vorbis_close(v);
         return -2;
@@ -5224,7 +5245,7 @@ int stb_vorbis_decode_memory(const uint8 *mem, int len, int *channels, int *samp
         if (offset + limit > total) {
             short *data2;
             total *= 2;
-            data2 = (short *)realloc(data, static_cast<unsigned long>(total )* sizeof(*data));
+            data2 = (short *)realloc(data, static_cast<unsigned long>(total) * sizeof(*data));
             if (data2 == NULL) {
                 free(data);
                 stb_vorbis_close(v);
@@ -5272,7 +5293,9 @@ int stb_vorbis_get_samples_float(stb_vorbis *f, int channels, float **buffer, in
         if (n + k >= num_samples) k = num_samples - n;
         if (k) {
             for (i = 0; i < z; ++i)
-                memcpy(buffer[i] + n, f->channel_buffers[i] + f->channel_buffer_start, sizeof(float) * static_cast<unsigned long>(k));
+                memcpy(buffer[i] + n,
+                       f->channel_buffers[i] + f->channel_buffer_start,
+                       sizeof(float) * static_cast<unsigned long>(k));
             for (; i < channels; ++i) memset(buffer[i] + n, 0, sizeof(float) * static_cast<unsigned long>(k));
         }
         n += k;
