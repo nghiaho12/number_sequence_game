@@ -15,7 +15,7 @@ Install Docker if you want to build for Android or web.
 sudo apt install docker-ce
 ```
 
-For compiling on Linux install SDL 3 (https://github.com/libsdl-org/SDL/).
+For Linux, install SDL 3 (https://github.com/libsdl-org/SDL/).
 
 ## Linux
 ```
