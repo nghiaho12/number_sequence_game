@@ -41,7 +41,15 @@ constexpr float NORM_HEIGHT = 1.f / ASPECT_RATIO;
 
 constexpr glm::vec4 BG_COLOR = Color::darkgrey;
 
-constexpr float BUTTON_PANEL_WIDTH = 0.5f;
+constexpr float BUTTON_LAYOUT1_WIDTH = 0.5f;
+constexpr float BUTTON_LAYOUT1_HEIGHT = 1.0f;
+constexpr float BUTTON_LAYOUT2_WIDTH = 1.0f;
+constexpr float BUTTON_LAYOUT2_HEIGHT = 0.5f;
+constexpr float TEXT_LAYOUT1_X = 0.6f;
+constexpr float TEXT_LAYOUT1_Y = 3.f/8.f;
+constexpr float TEXT_LAYOUT2_X = 0.35f;
+constexpr float TEXT_LAYOUT2_Y = 0.3f;
+
 constexpr glm::vec4 BUTTON_LINE_COLOR = Color::white;
 constexpr glm::vec4 BUTTON_FILL_COLOR = Color::blue;
 float BUTTON_LINE_THICKNESS = 0.005f;
@@ -55,6 +63,7 @@ constexpr glm::vec4 FONT_OUTLINE2 = Color::white;
 constexpr float FONT_OUTLINE_FACTOR = 0.0f;
 constexpr float FONT_WIDTH = 0.15f;
 constexpr float FONT_ENLARGE_SCALE = 1.3f;
+constexpr float FONT_SPACING = 0.1f;
 const glm::vec2 FONT_OFFSET = {-0.02f, 0.05f};
 
 constexpr float BOUNCE_ANIM_INITIAL_VEL = -0.25f;
@@ -76,6 +85,7 @@ struct AppState {
 
     bool init = false;
     bool mouse_down = false;
+    int done_count = 0;
 
     std::array<int, SEQ_LEN> number_sequence;
     std::array<bool, SEQ_LEN> number_done;
@@ -88,6 +98,9 @@ struct AppState {
     ShapeShader shape_shader;
     Shape draw_area_bg;
     Shape button;
+
+    float text_x;
+    float text_y;
 
     std::array<VertexBufferPtr, 10> number{
         VertexBufferPtr{{}, {}},
@@ -112,6 +125,9 @@ struct AppState {
 
     uint64_t game_delay_end = 0;
 };
+
+void init_button_layout1(AppState &as);
+void init_button_layout2(AppState &as);
 
 bool resize_event(AppState &as) {
     int win_w, win_h;
@@ -167,6 +183,12 @@ void init_game(AppState &as) {
     std::generate(as.number_sequence.begin(), as.number_sequence.end(), [&] { return dice(g); });
     std::fill(as.number_done.begin(), as.number_done.end(), false);
 
+    if (as.done_count % 2 == 0) {
+        init_button_layout1(as);
+    } else {
+        init_button_layout2(as);
+    }
+
     resize_event(as);
 }
 
@@ -216,6 +238,7 @@ void mouse_down_event(AppState &as) {
     if (std::all_of(as.number_done.begin(), as.number_done.end(), is_true)) {
         as.audio[AudioEnum::WIN].play(true);
         as.game_delay_end = SDL_GetTicksNS() + SDL_SECONDS_TO_NS(GAME_DELAY_DURATION_SEC);
+        as.done_count++;
     }
 }
 
@@ -257,6 +280,53 @@ bool init_font(AppState &as, const std::string &base_path) {
     }
 
     return true;
+}
+
+void init_button_layout1(AppState &as) {
+    constexpr int cols = 3;
+    constexpr int rows = 4;
+
+    float xdiv = cols * 2;
+    float ydiv = rows * 2;
+
+    size_t idx = 0;
+    for (size_t i = 0; i < 3; i++) {
+        for (size_t j = 0; j < 3; j++) {
+            float x = static_cast<float>(2 * j + 1) / xdiv;
+            float y = static_cast<float>(2 * i + 1) / ydiv;
+
+            as.button_center[idx] = {x * BUTTON_LAYOUT1_WIDTH, y * BUTTON_LAYOUT1_HEIGHT * NORM_HEIGHT};
+            idx++;
+        }
+    }
+
+    as.button_center[9] = {(2 * 1 + 1) / xdiv * BUTTON_LAYOUT1_WIDTH, (2 * 3 + 1) / ydiv * BUTTON_LAYOUT1_HEIGHT * NORM_HEIGHT};
+
+    as.text_x = TEXT_LAYOUT1_X;
+    as.text_y = TEXT_LAYOUT1_Y;
+}
+
+void init_button_layout2(AppState &as) {
+    constexpr int cols = 5;
+    constexpr int rows = 2;
+
+    float xdiv = cols * 2;
+    float ydiv = rows * 2;
+    float yoff = 1 - BUTTON_LAYOUT2_HEIGHT;
+
+    size_t idx = 0;
+    for (size_t i = 0; i < 2; i++) {
+        for (size_t j = 0; j < 5; j++) {
+            float x = static_cast<float>(2 * j + 1) / xdiv;
+            float y = static_cast<float>(2 * i + 1) / ydiv;
+
+            as.button_center[idx] = {x * BUTTON_LAYOUT2_WIDTH, (yoff + y * BUTTON_LAYOUT2_HEIGHT) * NORM_HEIGHT};
+            idx++;
+        }
+    }
+
+    as.text_x = TEXT_LAYOUT2_X;
+    as.text_y = TEXT_LAYOUT2_Y;
 }
 
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
@@ -356,23 +426,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]) {
         as->button = make_shape(vertex, BUTTON_LINE_THICKNESS, BUTTON_LINE_COLOR, BUTTON_FILL_COLOR);
     }
 
-    // position for the src and dst shape
-    float xdiv = 3 * 2;
-    float ydiv = 4 * 2;
-
-    size_t idx = 0;
-    for (size_t i = 0; i < 3; i++) {
-        for (size_t j = 0; j < 3; j++) {
-            float x = static_cast<float>(2 * j + 1) / xdiv;
-            float y = static_cast<float>(2 * i + 1) / ydiv;
-
-            as->button_center[idx] = {x * BUTTON_PANEL_WIDTH, y * NORM_HEIGHT};
-            idx++;
-        }
-    }
-
-    as->button_center[9] = {(2 * 1 + 1) / xdiv * BUTTON_PANEL_WIDTH, (2 * 3 + 1) / ydiv * NORM_HEIGHT};
-
+    init_button_layout2(*as);
     init_game(*as);
 
     return SDL_APP_CONTINUE;
@@ -490,11 +544,10 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
     as.font_shader.set_bg(FONT_BG);
     as.font_shader.set_outline_factor(0.1f);
 
-    float ydiv = 4 * 2;
     bool do_anim = true;
 
     for (size_t i = 0; i < as.number_sequence.size(); i++) {
-        glm::vec2 pos{0.6 + static_cast<float>(i) * 0.1, NORM_HEIGHT * 3 / ydiv};
+        glm::vec2 pos{as.text_x + static_cast<float>(i) * FONT_SPACING, as.text_y * NORM_HEIGHT};
 
         int num = as.number_sequence[i];
 
