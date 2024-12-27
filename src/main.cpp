@@ -37,16 +37,13 @@
 
 constexpr int SEQ_LEN = 4;
 constexpr float ASPECT_RATIO = 16.f / 9.f;
+constexpr float NORM_WIDTH = 1.f;
 constexpr float NORM_HEIGHT = 1.f / ASPECT_RATIO;
 
 constexpr glm::vec4 BG_COLOR = Color::darkgrey;
 
-constexpr float BUTTON_LAYOUT1_WIDTH = 0.5f;
-constexpr float BUTTON_LAYOUT1_HEIGHT = 1.0f;
-constexpr float BUTTON_LAYOUT2_WIDTH = 1.0f;
-constexpr float BUTTON_LAYOUT2_HEIGHT = 0.5f;
 constexpr float TEXT_LAYOUT1_X = 0.6f;
-constexpr float TEXT_LAYOUT1_Y = 3.f/8.f;
+constexpr float TEXT_LAYOUT1_Y = 3.f / 8.f;
 constexpr float TEXT_LAYOUT2_X = 0.35f;
 constexpr float TEXT_LAYOUT2_Y = 0.3f;
 
@@ -54,6 +51,7 @@ constexpr glm::vec4 BUTTON_LINE_COLOR = Color::white;
 constexpr glm::vec4 BUTTON_FILL_COLOR = Color::blue;
 float BUTTON_LINE_THICKNESS = 0.005f;
 constexpr float BUTTON_RADIUS = 0.06f;
+constexpr float BUTTON_PADDING = 0.02f;
 
 constexpr glm::vec4 FONT_FG = Color::yellow;
 constexpr glm::vec4 FONT_FG2 = Color::yellow;
@@ -255,7 +253,7 @@ bool init_audio(AppState &as, const std::string &base_path) {
         return false;
     }
 
-    if (auto w = load_ogg(as.audio_device, (base_path + "win.ogg").c_str())) {
+    if (auto w = load_ogg(as.audio_device, (base_path + "clap.ogg").c_str())) {
         as.audio[AudioEnum::WIN] = *w;
     } else {
         return false;
@@ -286,21 +284,27 @@ void init_button_layout1(AppState &as) {
     constexpr int cols = 3;
     constexpr int rows = 4;
 
-    float xdiv = cols * 2;
-    float ydiv = rows * 2;
+    float total_w = (BUTTON_RADIUS * 2) * cols + BUTTON_PADDING * (cols - 1);
+    float total_h = (BUTTON_RADIUS * 2) * rows + BUTTON_PADDING * (rows - 1);
+
+    float xoff = BUTTON_RADIUS + (NORM_WIDTH * 0.5f - total_w) * 0.5f;
+    float yoff = BUTTON_RADIUS + (NORM_HEIGHT - total_h) * 0.5f;
 
     size_t idx = 0;
     for (size_t i = 0; i < 3; i++) {
         for (size_t j = 0; j < 3; j++) {
-            float x = static_cast<float>(2 * j + 1) / xdiv;
-            float y = static_cast<float>(2 * i + 1) / ydiv;
+            float x = xoff + (2 * BUTTON_RADIUS + BUTTON_PADDING) * static_cast<float>(j);
+            float y = yoff + (2 * BUTTON_RADIUS + BUTTON_PADDING) * static_cast<float>(i);
 
-            as.button_center[idx] = {x * BUTTON_LAYOUT1_WIDTH, y * BUTTON_LAYOUT1_HEIGHT * NORM_HEIGHT};
+            as.button_center[idx] = {x, y};
             idx++;
         }
     }
 
-    as.button_center[9] = {(2 * 1 + 1) / xdiv * BUTTON_LAYOUT1_WIDTH, (2 * 3 + 1) / ydiv * BUTTON_LAYOUT1_HEIGHT * NORM_HEIGHT};
+    // zero
+    float x = xoff + (2 * BUTTON_RADIUS + BUTTON_PADDING) * static_cast<float>(1);
+    float y = yoff + (2 * BUTTON_RADIUS + BUTTON_PADDING) * static_cast<float>(3);
+    as.button_center[9] = {x, y};
 
     as.text_x = TEXT_LAYOUT1_X;
     as.text_y = TEXT_LAYOUT1_Y;
@@ -310,17 +314,19 @@ void init_button_layout2(AppState &as) {
     constexpr int cols = 5;
     constexpr int rows = 2;
 
-    float xdiv = cols * 2;
-    float ydiv = rows * 2;
-    float yoff = 1 - BUTTON_LAYOUT2_HEIGHT;
+    float total_w = (BUTTON_RADIUS * 2) * cols + BUTTON_PADDING * (cols - 1);
+    float total_h = (BUTTON_RADIUS * 2) * rows + BUTTON_PADDING * (rows - 1);
+
+    float xoff = BUTTON_RADIUS + (NORM_WIDTH - total_w) * 0.5f;
+    float yoff = BUTTON_RADIUS + NORM_HEIGHT * 0.5f + (NORM_HEIGHT * 0.5f - total_h) * 0.5f;
 
     size_t idx = 0;
-    for (size_t i = 0; i < 2; i++) {
-        for (size_t j = 0; j < 5; j++) {
-            float x = static_cast<float>(2 * j + 1) / xdiv;
-            float y = static_cast<float>(2 * i + 1) / ydiv;
+    for (size_t i = 0; i < rows; i++) {
+        for (size_t j = 0; j < cols; j++) {
+            float x = xoff + (2 * BUTTON_RADIUS + BUTTON_PADDING) * static_cast<float>(j);
+            float y = yoff + (2 * BUTTON_RADIUS + BUTTON_PADDING) * static_cast<float>(i);
 
-            as.button_center[idx] = {x * BUTTON_LAYOUT2_WIDTH, (yoff + y * BUTTON_LAYOUT2_HEIGHT) * NORM_HEIGHT};
+            as.button_center[idx] = {x, y};
             idx++;
         }
     }
