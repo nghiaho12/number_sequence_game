@@ -47,7 +47,7 @@ struct FontShader {
 
     // call when window resizes
     void set_ortho(const glm::mat4 &ortho) const;
-    void set_display_width(float scale) const;
+    void set_display_width(float display_width) const;
 
     void set_font_distance_range(float range) const;
     void set_font_grid_width(float range) const;
