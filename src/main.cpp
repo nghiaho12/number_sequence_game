@@ -158,7 +158,6 @@ bool resize_event(AppState &as) {
     }
 
     auto norm_x = [=](float x) { return (x - draw_area_offset.x) / draw_area_size.x; };
-
     auto norm_y = [=](float y) { return (y - draw_area_offset.y) / draw_area_size.x; };
 
     glViewport(0, 0, win_w, win_h);
