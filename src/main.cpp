@@ -71,7 +71,7 @@ constexpr float BOUNCE_ANIM_DURATION_SEC = 2.5f;
 
 constexpr float GAME_DELAY_DURATION_SEC = 1.f;
 
-enum class AudioEnum { BGM, CLICK, WIN };
+enum class AudioEnum { BGM, CLICK, CLAP, WIN };
 
 struct AppState {
     SDL_Window *window = nullptr;
@@ -157,18 +157,19 @@ bool resize_event(AppState &as) {
         draw_area_offset.y = (win_hf - draw_area_size.y) / 2;
     }
 
-    glViewport(0, 0, win_w, win_h);
-    glm::mat4 ortho = glm::ortho(0.f, win_wf, win_hf, 0.f);
+    auto norm_x = [=](float x) { return (x - draw_area_offset.x) / draw_area_size.x; };
 
-    float scale = draw_area_size.x;
+    auto norm_y = [=](float y) { return (y - draw_area_offset.y) / draw_area_size.x; };
+
+    glViewport(0, 0, win_w, win_h);
+    glm::mat4 ortho = glm::ortho(norm_x(0.f), norm_x(win_wf), norm_y(win_hf), norm_y(0.f));
 
     as.shape_shader.set_ortho(ortho);
-    as.shape_shader.set_drawing_area_offset(draw_area_offset);
-    as.shape_shader.set_screen_scale(scale);
+    as.shape_shader.draw_area_size = draw_area_size;
+    as.shape_shader.draw_area_offset = draw_area_offset;
 
     as.font_shader.set_ortho(ortho);
-    as.font_shader.set_screen_scale(scale);
-    as.font_shader.set_drawing_area_offset(draw_area_offset);
+    as.font_shader.set_display_width(draw_area_size.x);
 
     return true;
 }
@@ -235,6 +236,7 @@ void mouse_down_event(AppState &as) {
     auto is_true = [](bool b) { return b; };
     if (std::all_of(as.number_done.begin(), as.number_done.end(), is_true)) {
         as.audio[AudioEnum::WIN].play(true);
+        as.audio[AudioEnum::CLAP].play(true);
         as.game_delay_end = SDL_GetTicksNS() + SDL_SECONDS_TO_NS(GAME_DELAY_DURATION_SEC);
         as.done_count++;
     }
@@ -253,8 +255,14 @@ bool init_audio(AppState &as, const std::string &base_path) {
         return false;
     }
 
-    if (auto w = load_ogg(as.audio_device, (base_path + "clap.ogg").c_str())) {
+    if (auto w = load_ogg(as.audio_device, (base_path + "win.ogg").c_str())) {
         as.audio[AudioEnum::WIN] = *w;
+    } else {
+        return false;
+    }
+
+    if (auto w = load_ogg(as.audio_device, (base_path + "clap.ogg").c_str())) {
+        as.audio[AudioEnum::CLAP] = *w;
     } else {
         return false;
     }
@@ -530,7 +538,7 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
     as.font_shader.set_bg(FONT_BG);
     as.font_shader.set_outline(FONT_OUTLINE);
     as.font_shader.set_outline_factor(FONT_OUTLINE_FACTOR);
-    as.font_shader.set_font_target_width(FONT_WIDTH);
+    as.font_shader.set_font_width(FONT_WIDTH);
 
     size_t i = 0;
     for (const auto &center : as.button_center) {
@@ -563,13 +571,13 @@ SDL_AppResult SDL_AppIterate(void *appstate) {
         if (as.number_done[i]) {
             bbox_center *= FONT_WIDTH * FONT_ENLARGE_SCALE;
 
-            as.font_shader.set_font_target_width(FONT_WIDTH * FONT_ENLARGE_SCALE);
+            as.font_shader.set_font_width(FONT_WIDTH * FONT_ENLARGE_SCALE);
             as.font_shader.set_fg(FONT_FG2);
             as.font_shader.set_outline(FONT_OUTLINE);
         } else {
             bbox_center *= FONT_WIDTH;
 
-            as.font_shader.set_font_target_width(FONT_WIDTH);
+            as.font_shader.set_font_width(FONT_WIDTH);
             as.font_shader.set_fg(Color::transparent);
             as.font_shader.set_outline(FONT_OUTLINE2);
 

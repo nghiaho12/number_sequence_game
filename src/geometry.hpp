@@ -3,8 +3,6 @@
 #include <SDL3/SDL_opengles2.h>
 
 #include <glm/glm.hpp>
-#include <map>
-#include <string>
 #include <vector>
 
 #include "gl_helper.hpp"
@@ -31,13 +29,11 @@ struct Shape {
 
 struct ShapeShader {
     ShaderPtr shader{{}, {}};
-    float screen_scale;
-    glm::vec2 drawing_area_offset;
+    glm::vec2 draw_area_offset;
+    glm::vec2 draw_area_size;
 
     bool init();
     void set_ortho(const glm::mat4 &ortho);
-    void set_screen_scale(float scale);
-    void set_drawing_area_offset(const glm::vec2 &offset);
 };
 
 struct VertexIndex {
