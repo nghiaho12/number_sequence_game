@@ -1,46 +1,61 @@
 Simple number sequence game for kids written using SDL3 and OpenGL ES.
-It rus on Ubuntu 24.04, Android 14, Firefox 130.0 and Chromimum 131.0.
 
 ![screenshot](screenshot.png)
 
-# Install
+# Binary release
+See the Github releases page for Linux, Windows, Android and web binaries.
+
+# Building from source
 ## Prerequisite
-This repo uses git LFS for the assets. Install it before cloning.
-```
-sudo apt install git-lfs
-```
-
-Install Docker if you want to build for Android or web.
-```
-sudo apt install docker-ce
-```
-
-For Linux, install SDL 3 (https://github.com/libsdl-org/SDL/).
+This repo uses git LFS for the assets. Install it before cloning, e.g. ```sudo apt install git-lfs```.
+You'll also need to have Docker installed, e.g. ```sudo apt install docker-ce```.
 
 ## Linux
+The default Linux target is Debian 12.8. Edit Dockerfile.linux to match your distro if you run into problems with the binary.
+
 ```
-cmake -B build
-cmake --build build
-./build/number_sequence_game
+docker build -f Dockerfile.linux -t number_sequence:linux .
+docker run --rm -it --network=host number_sequence:linux
+```
+Go to http://localhost:8000 to download the release package.
+
+The tarball comes with SDL3 shared library bundled. Run the binary by calling
+```
+LD_LIBRARY_PATH=. ./number_sequence
 ```
 
-Hit ESC to quit.
+## Windows
+```
+docker build -f Dockerfile.windows -t number_sequence:windows .
+docker run --rm -it --network=host number_sequence:windows
+```
+
+Point your browser to http://localhost:8000 to download the release package.
 
 ## Android
+The APK is targeted at Android 9 (API Level 28) and above.
+
 ```
-docker build -f Dockerfile.android -t number_sequence_game_android .
-docker run --rm --network=host number_sequence_game_android
+docker build -f Dockerfile.android -t number_sequence:android .
+docker run --rm -it --network=host number_sequence:android
 ```
 
-Point your Android web browser to http://[IP of host]:8000. Download and install the APK.
+Point your Android web browser to http://localhost:8000 to download the APK.
 
 ## Web
 ```
-docker build -f Dockerfile.wasm -t number_sequence_game_wasm .
-docker run --rm --network=host number_sequence_game_wasm
+docker build -f Dockerfile.wasm -t number_sequence:wasm .
+docker run --rm -it --network=host number_sequence:wasm
 ```
 
-Point your browser to http://localhost:8000.
+Point your browser to http://localhost:8000 to download the release package.
+If you have Python installed you can run the app by calling
+
+```
+python3 -m http.server
+```
+
+inside the extracted folder and point your browser to http://localhost:8000.
 
 # Credits
 Sound assets 

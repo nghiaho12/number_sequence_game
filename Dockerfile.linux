@@ -1,0 +1,40 @@
+FROM debian:12.8
+
+RUN apt update && \
+    apt install -y wget g++ git cmake libx11-dev libxext-dev libgl1-mesa-dev \
+    pkg-config libasound2-dev libpulse-dev binutils coreutils python3 autoconf \
+    libtool
+
+RUN git clone https://github.com/libsdl-org/SDL.git
+RUN cd SDL && \
+    git checkout 2d37903 && \
+    cmake -B build \
+        -DSDL_OPENGLES=ON && \
+    cmake --build build --parallel 6 && \
+    cmake --install build --prefix=/usr/local
+
+RUN git clone -b 1.0.1 --depth 1 https://github.com/g-truc/glm.git
+RUN cd /glm && \
+    cmake -B build \
+        -DGLM_BUILD_TESTS=OFF \
+        -DBUILD_SHARED_LIBS=OFF && \
+    cmake --build build && \
+    cmake --install build --prefix=/usr/local
+RUN mkdir -p /usr/local/share/licenses/glm && \
+    cp /glm/copying.txt /usr/local/share/licenses/glm
+
+WORKDIR /number_sequence
+COPY src/ /number_sequence/src
+COPY assets/ /number_sequence/assets
+COPY CMakeLists.txt /number_sequence
+COPY README.md /number_sequence
+COPY LICENSE /number_sequence
+
+RUN cmake -B build && \
+    cmake --build build --parallel 6 && \
+    cd build && \
+    make package && \
+    mkdir -p release && \
+    mv *.tar.gz release
+
+CMD ["/usr/bin/python3", "-m", "http.server", "--directory", "/number_sequence/build/release"]
