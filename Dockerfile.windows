@@ -47,12 +47,12 @@ RUN mkdir /msys2 && \
     wget https://mirror.msys2.org/mingw/mingw64/mingw-w64-x86_64-gcc-libs-14.2.0-2-any.pkg.tar.zst && \
     tar --zstd -xvf mingw-w64-x86_64-gcc-libs-14.2.0-2-any.pkg.tar.zst
 
-WORKDIR /number_sequence
-COPY src /number_sequence/src
-COPY assets /number_sequence/assets
-COPY CMakeLists.txt /number_sequence
-COPY README.md /number_sequence
-COPY LICENSE /number_sequence
+WORKDIR /number_sequence_game
+COPY src /number_sequence_game/src
+COPY assets /number_sequence_game/assets
+COPY CMakeLists.txt /number_sequence_game
+COPY README.md /number_sequence_game
+COPY LICENSE /number_sequence_game
 
 RUN cmake -B build \
         -DCMAKE_TOOLCHAIN_FILE=/x86_64-w64-mingw32.cmake && \
@@ -62,5 +62,5 @@ RUN cmake -B build \
     mkdir -p release && \
     mv *.zip release
 
-CMD ["/usr/bin/python3", "-m", "http.server", "--directory", "/number_sequence/build/release"]
+CMD ["/usr/bin/python3", "-m", "http.server", "--directory", "/number_sequence_game/build/release"]
 

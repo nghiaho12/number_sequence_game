@@ -29,13 +29,13 @@ RUN /emsdk/emsdk activate $EMSDK_VER && \
 RUN mkdir -p /wasm/share/licenses/glm && \
     cp /glm/copying.txt /wasm/share/licenses/glm
 
-WORKDIR /number_sequence
-COPY CMakeLists.txt /number_sequence
-COPY README.md /number_sequence
-COPY LICENSE /number_sequence
-COPY wasm/index.html /number_sequence
-COPY src/ /number_sequence/src/
-COPY assets/ /number_sequence/assets/
+WORKDIR /number_sequence_game
+COPY CMakeLists.txt /number_sequence_game
+COPY README.md /number_sequence_game
+COPY LICENSE /number_sequence_game
+COPY wasm/index.html /number_sequence_game
+COPY src/ /number_sequence_game/src/
+COPY assets/ /number_sequence_game/assets/
 
 RUN /emsdk/emsdk activate $EMSDK_VER && \
     source /emsdk/emsdk_env.sh && \
@@ -46,6 +46,6 @@ RUN /emsdk/emsdk activate $EMSDK_VER && \
     mkdir -p release && \
     mv *.zip release
 
-COPY wasm/index.html /number_sequence/build
+COPY wasm/index.html /number_sequence_game/build
 
-CMD ["/usr/bin/python3", "-m", "http.server", "--directory", "/number_sequence/build/release"]
+CMD ["/usr/bin/python3", "-m", "http.server", "--directory", "/number_sequence_game/build/release"]

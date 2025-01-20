@@ -23,12 +23,12 @@ RUN cd /glm && \
 RUN mkdir -p /usr/local/share/licenses/glm && \
     cp /glm/copying.txt /usr/local/share/licenses/glm
 
-WORKDIR /number_sequence
-COPY src/ /number_sequence/src
-COPY assets/ /number_sequence/assets
-COPY CMakeLists.txt /number_sequence
-COPY README.md /number_sequence
-COPY LICENSE /number_sequence
+WORKDIR /number_sequence_game
+COPY src/ /number_sequence_game/src
+COPY assets/ /number_sequence_game/assets
+COPY CMakeLists.txt /number_sequence_game
+COPY README.md /number_sequence_game
+COPY LICENSE /number_sequence_game
 
 RUN cmake -B build && \
     cmake --build build --parallel 6 && \
@@ -37,4 +37,4 @@ RUN cmake -B build && \
     mkdir -p release && \
     mv *.tar.gz release
 
-CMD ["/usr/bin/python3", "-m", "http.server", "--directory", "/number_sequence/build/release"]
+CMD ["/usr/bin/python3", "-m", "http.server", "--directory", "/number_sequence_game/build/release"]
